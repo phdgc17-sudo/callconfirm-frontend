@@ -1,0 +1,230 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  MODERATOR
+  DISPATCHER
+  OFFICER
+  MEMBER
+}
+
+model User {
+  id           String            @id @default(uuid())
+  name         String
+  email        String            @unique
+  passwordHash String
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  memberships  CommunityMember[]
+  auditLogs    AuditLog[]        @relation("AuditActor")
+  resetTokens  PasswordReset[]
+}
+
+model Community {
+  id          String            @id @default(uuid())
+  name        String
+  description String
+  premium     Boolean           @default(false)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  members     CommunityMember[]
+  servers     Server[]
+  announcements Announcement[]
+  applicationForms ApplicationForm[]
+  civilians   Civilian[]
+  vehicles    Vehicle[]
+  citations   Citation[]
+  arrests     Arrest[]
+  bolos       Bolo[]
+  incidentReports IncidentReport[]
+  sessions    Session[]
+  auditLogs   AuditLog[]
+  dispatchCalls DispatchCall[]
+}
+
+model CommunityMember {
+  id          String    @id @default(uuid())
+  communityId String
+  userId      String
+  role        Role
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  community   Community @relation(fields: [communityId], references: [id])
+  user        User      @relation(fields: [userId], references: [id])
+
+  @@unique([communityId, userId], name: "communityId_userId")
+}
+
+model Server {
+  id          String   @id @default(uuid())
+  communityId String
+  name        String
+  description String
+  joinMethod  String
+  state       String?
+  type        String
+  language    String
+  tags        String[]
+  rules       String[]
+  staffList   Json
+  logoUrl     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  community   Community @relation(fields: [communityId], references: [id])
+}
+
+model Announcement {
+  id          String   @id @default(uuid())
+  communityId String
+  title       String
+  body        String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  community   Community @relation(fields: [communityId], references: [id])
+}
+
+model ApplicationForm {
+  id          String   @id @default(uuid())
+  communityId String
+  title       String
+  questions   Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  community   Community @relation(fields: [communityId], references: [id])
+  responses   ApplicationResponse[]
+}
+
+model ApplicationResponse {
+  id            String   @id @default(uuid())
+  applicationId String
+  applicantName String
+  status        String
+  responses     Json
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  application   ApplicationForm @relation(fields: [applicationId], references: [id])
+}
+
+model Civilian {
+  id          String   @id @default(uuid())
+  communityId String
+  name        String
+  dob         String?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  community   Community @relation(fields: [communityId], references: [id])
+  vehicles    Vehicle[]
+}
+
+model Vehicle {
+  id          String   @id @default(uuid())
+  communityId String
+  civilianId  String
+  plate       String
+  makeModel   String
+  color       String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  community   Community @relation(fields: [communityId], references: [id])
+  civilian    Civilian @relation(fields: [civilianId], references: [id])
+}
+
+model Citation {
+  id          String   @id @default(uuid())
+  communityId String
+  civilianId  String
+  officer     String
+  violation   String
+  fine        Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  community   Community @relation(fields: [communityId], references: [id])
+  civilian    Civilian @relation(fields: [civilianId], references: [id])
+}
+
+model Arrest {
+  id          String   @id @default(uuid())
+  communityId String
+  civilianId  String
+  officer     String
+  charges     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  community   Community @relation(fields: [communityId], references: [id])
+  civilian    Civilian @relation(fields: [civilianId], references: [id])
+}
+
+model Bolo {
+  id          String   @id @default(uuid())
+  communityId String
+  subject     String
+  description String
+  status      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  community   Community @relation(fields: [communityId], references: [id])
+
+  @@map("BOLO")
+}
+
+model IncidentReport {
+  id          String   @id @default(uuid())
+  communityId String
+  title       String
+  summary     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  community   Community @relation(fields: [communityId], references: [id])
+}
+
+model Session {
+  id          String   @id @default(uuid())
+  communityId String
+  name        String
+  status      String
+  activeUnits Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  community   Community @relation(fields: [communityId], references: [id])
+}
+
+model DispatchCall {
+  id          String   @id @default(uuid())
+  communityId String
+  description String
+  status      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  community   Community @relation(fields: [communityId], references: [id])
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  communityId String
+  actorId     String
+  action      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  community   Community @relation(fields: [communityId], references: [id])
+  actor       User      @relation("AuditActor", fields: [actorId], references: [id])
+}
+
+model PasswordReset {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id])
+}
